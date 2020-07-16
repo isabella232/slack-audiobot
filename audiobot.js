@@ -13,6 +13,11 @@ if(platform === 'win32') {
 
 var started = true;
 var slack = new Slack(config.token, true, true);
+var player = 'afplay ';
+var outputDevice = '';
+var channel;
+
+const CIRCLE_CI_BOT = 'B0171JN8030';
 
 var makeMention = function(userId) {
     return '<@' + userId + '>';
@@ -67,15 +72,18 @@ slack.on('message', function(message) {
     }
 
 
-    //console.log('started = ' + started);
-    var channel = slack.getChannelGroupOrDMByID(message.channel);
+    channel = slack.getChannelGroupOrDMByID(message.channel);
     var user = slack.getUserByID(message.user);
+
+    if (isBuildBrokenMessage(message)) {
+        play('trombone');
+        // exec('say the build is broken');
+        return
+    }
 
     if(message.type === 'message') {
         //get message text
         var messageText = message.text;
-        var outputDevice = '';
-        var player = 'afplay ';
         if(messageText) {
             //pick output device 1 = headphones, 2 = speakers (default) - windows only
             if(platform === 'win32') {
@@ -96,25 +104,7 @@ slack.on('message', function(message) {
             if((hasPlay > -1) && (started === true)) {
                 //if message has the word play in then try and play a message
                 var toPlay = message.text.substring(hasPlay + 5);
-                var toPlayWav = 'sounds/' + toPlay + '.wav'; //allow for mp3 and wav versions (consider creating an array of supported filetypes instead)
-                var toPlayMp3 = 'sounds/' + toPlay + '.mp3';
-
-
-                fs.exists(toPlayMp3,function(existsMp3) { //mp3 version of loop
-                    if(existsMp3) {
-                        exec(player + outputDevice + ' ' + toPlayMp3);
-                        played = 'played';
-                        channel.send('Played sound: "' + toPlay + '"');
-                        console.log('playing: ' + toPlayMp3);
-                    }
-                });
-                fs.exists(toPlayWav,function(existsWav) { //wav version of loop
-                    if(existsWav) {
-                        exec(player + outputDevice + ' ' + toPlayWav);
-                        channel.send('Played sound: "' + toPlay + '"');
-                        console.log('playing: ' + toPlayWav);
-                    }
-                });
+                play(toPlay);
             }
 
             if(isDirect(slack.self.id, message.text)) {
@@ -163,9 +153,41 @@ slack.on('message', function(message) {
                 }
 
             }
+
         }
 
     }
 });
 
 slack.login();
+
+function isBuildBrokenMessage(message) {
+    if (message.bot_id != CIRCLE_CI_BOT) {
+        return false;
+    }
+    // TODO check for Failed message
+    console.log('message:', message);
+    return true;
+}
+
+function play(toPlay) {
+    var toPlayWav = 'sounds/' + toPlay + '.wav'; //allow for mp3 and wav versions (consider creating an array of supported filetypes instead)
+    var toPlayMp3 = 'sounds/' + toPlay + '.mp3';
+
+
+    fs.exists(toPlayMp3,function(existsMp3) { //mp3 version of loop
+        if(existsMp3) {
+            exec(player + outputDevice + ' ' + toPlayMp3);
+            played = 'played';
+            channel.send('Played sound: "' + toPlay + '"');
+            console.log('playing: ' + toPlayMp3);
+        }
+    });
+    fs.exists(toPlayWav,function(existsWav) { //wav version of loop
+        if(existsWav) {
+            exec(player + outputDevice + ' ' + toPlayWav);
+            channel.send('Played sound: "' + toPlay + '"');
+            console.log('playing: ' + toPlayWav);
+        }
+    });
+}
