@@ -14,6 +14,7 @@ if(platform === 'win32') {
 
 var started = true;
 var slack = new Slack(config.token, true, true);
+
 var player = 'afplay ';
 var outputDevice = '';
 var channel;
