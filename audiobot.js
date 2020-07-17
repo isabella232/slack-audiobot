@@ -75,9 +75,16 @@ slack.on('message', function(message) {
     channel = slack.getChannelGroupOrDMByID(message.channel);
     var user = slack.getUserByID(message.user);
 
-    if (isBuildBrokenMessage(message)) {
-        play('trombone');
-        // exec('say the build is broken');
+    if (isCircleCIMessage(message)) {
+        const blame = getBuildBlame(message);
+        if (blame == null) {
+            return;
+        }
+        play('ahooga-horn', true);
+        // setTimeout(() => {
+        //     console.log('timeout');
+        //     exec('say ' + blame + ' build is broken');
+        // }, 2000);
         return
     }
 
@@ -161,7 +168,7 @@ slack.on('message', function(message) {
 
 slack.login();
 
-function isBuildBrokenMessage(message) {
+function isCircleCIMessage(message) {
     if (message.bot_id != CIRCLE_CI_BOT) {
         return false;
     }
@@ -170,7 +177,20 @@ function isBuildBrokenMessage(message) {
     return true;
 }
 
-function play(toPlay) {
+function getBuildBlame(message) {
+    if (message.attachments == null || message.attachments.length < 1) {
+        return null;
+    }
+    const text = message.attachments[0].text;
+    const matches = text.match(/Failed: (\S+) workflow/);
+    if (matches == null || matches.length < 2) {
+        return null;
+    }
+    let blame = matches[1];
+    return blame.replace("'", "\\'", -1);
+}
+
+function play(toPlay, suppressAlert) {
     var toPlayWav = 'sounds/' + toPlay + '.wav'; //allow for mp3 and wav versions (consider creating an array of supported filetypes instead)
     var toPlayMp3 = 'sounds/' + toPlay + '.mp3';
 
@@ -179,14 +199,18 @@ function play(toPlay) {
         if(existsMp3) {
             exec(player + outputDevice + ' ' + toPlayMp3);
             played = 'played';
-            channel.send('Played sound: "' + toPlay + '"');
+            if (!suppressAlert) {
+                channel.send('Played sound: "' + toPlay + '"');
+            }
             console.log('playing: ' + toPlayMp3);
         }
     });
     fs.exists(toPlayWav,function(existsWav) { //wav version of loop
         if(existsWav) {
             exec(player + outputDevice + ' ' + toPlayWav);
-            channel.send('Played sound: "' + toPlay + '"');
+            if (!suppressAlert) {
+                channel.send('Played sound: "' + toPlay + '"');
+            }
             console.log('playing: ' + toPlayWav);
         }
     });
