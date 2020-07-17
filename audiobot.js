@@ -4,6 +4,7 @@ var fs = require('fs');
 var config = require('./config/config.js');
 var os = require('os');
 var platform = os.platform();
+
 if(platform === 'win32') {
     var winsay = require('winsay');
 }
